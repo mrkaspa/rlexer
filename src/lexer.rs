@@ -28,7 +28,7 @@ fn is_digit(ch: char) -> bool {
 }
 
 #[derive(Debug)]
-struct Lexer {
+pub struct Lexer {
     pos: i32,
     buffer: Vec<char>,
 }
@@ -76,9 +76,11 @@ impl Lexer {
             Some(ch) => {
                 if is_whitespace(ch) {
                     self.unread();
+                    return self.scan_whitespace();
                 }
                 if is_letter(ch) {
                     self.unread();
+                    return self.scan_ident();
                 }
                 match ch {
                     '*' => Token::Asterisk,
@@ -126,5 +128,48 @@ impl Lexer {
             }
         }
         Token::Ident(buff)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_reads_none() {
+        let mut l = Lexer::new(String::from(""));
+        assert_eq!(l.read(), None);
+    }
+
+    #[test]
+    fn it_reads_a_letter() {
+        let mut l = Lexer::new(String::from("a"));
+        assert_eq!(l.read(), Some('a'));
+    }
+
+    #[test]
+    fn it_unreads() {
+        let mut l = Lexer::new(String::from("a"));
+        assert_eq!(l.pos, 0);
+        assert_eq!(l.read(), Some('a'));
+        assert_eq!(l.pos, 1);
+        l.unread();
+        assert_eq!(l.pos, 0);
+    }
+
+    #[test]
+    fn it_scans_whitespace() {
+        let mut l = Lexer::new(String::from(" "));
+        assert_eq!(l.pos, 0);
+        assert_eq!(l.scan_whitespace(), Token::WS);
+        assert_eq!(l.pos, 1);
+    }
+
+    #[test]
+    fn it_scans_ident() {
+        let mut l = Lexer::new(String::from("user"));
+        assert_eq!(l.pos, 0);
+        assert_eq!(l.scan_ident(), Token::Ident(String::from("user")));
+        assert_eq!(l.pos, 4);
     }
 }
