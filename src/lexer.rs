@@ -34,7 +34,7 @@ pub struct Lexer {
 }
 
 impl Lexer {
-    pub fn new(s: String) -> Lexer {
+    pub fn new(s: String) -> Self {
         Lexer {
             pos: 0,
             buffer: s.chars().collect(),
