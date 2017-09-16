@@ -23,7 +23,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn new(l: &'a mut Lexer) -> Self {
+    pub fn new(l: &'a mut Lexer) -> Self {
         Parser {
             lexer: l,
             stmt: None,
@@ -225,17 +225,22 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lexer::Token;
 
     #[test]
-    fn it_reads_none() {
+    fn it_scans() {
         let mut l = Lexer::new(String::from("INSERT INTO tbl (name, email) VALUES (demo, demo)"));
         let mut p = Parser::new(&mut l);
-        let res = p.parse().expect("Error parsing");
-        assert_eq!(res,
-                   Statement::InsertStatement {
-                       table: String::from("tbl"),
-                       cols: vec![String::from("name"), String::from("email")],
-                       values: vec![String::from("demo"), String::from("demo")],
-                   });
+        let token = p.scan();
+        assert_eq!(token, Token::Insert);
+    }
+
+    #[test]
+    fn it_stores_buf() {
+        let mut l = Lexer::new(String::from("INSERT INTO tbl (name, email) VALUES (demo, demo)"));
+        let mut p = Parser::new(&mut l);
+        let token = p.scan();
+        p.unscan();
+        assert_eq!(p.buf, Some(token));
     }
 }
