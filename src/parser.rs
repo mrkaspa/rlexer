@@ -131,30 +131,7 @@ impl<'a> Parser<'a> {
     }
 
     fn extract_cols(p: &mut Parser) -> NextFnCall {
-        let mut token = p.scan_ignore_whitespace();
-        if token != Token::ParLeft {
-            return Err(String::from("( expected"));
-        }
-        let mut veci = vec![];
-        loop {
-            token = p.scan_ignore_whitespace();
-            match token {
-                Token::Ident(value) => {
-                    veci.push(value);
-                    token = p.scan_ignore_whitespace();
-                    if token != Token::Comma {
-                        p.unscan();
-                        break;
-                    }
-                }
-                _ => return Err(String::from("Ident token expected")),
-            }
-        }
-        token = p.scan_ignore_whitespace();
-        println!("---{:?}", token);
-        if token != Token::ParRight {
-            return Err(String::from(") expected"));
-        }
+        let veci = Self::get_into_parentheses(p)?;
         match p.stmt {
             Some(ref mut stmt) => {
                 match stmt {
@@ -179,6 +156,22 @@ impl<'a> Parser<'a> {
     }
 
     fn extract_values(p: &mut Parser) -> NextFnCall {
+        let veci = Self::get_into_parentheses(p)?;
+        match p.stmt {
+            Some(ref mut stmt) => {
+                match stmt {
+                    &mut Statement::InsertStatement { ref mut values, .. } => {
+                        *values = veci;
+                        Ok(Some(NextFn { call: Self::end }))
+                    }
+                    _ => Err(String::from("Wrong statement type")),
+                }
+            }
+            None => Err(String::from("Statement not created")),
+        }
+    }
+
+    fn get_into_parentheses(p: &mut Parser) -> Result<Vec<String>, String> {
         let mut token = p.scan_ignore_whitespace();
         if token != Token::ParLeft {
             return Err(String::from("( expected"));
@@ -202,18 +195,7 @@ impl<'a> Parser<'a> {
         if token != Token::ParRight {
             return Err(String::from(") expected"));
         }
-        match p.stmt {
-            Some(ref mut stmt) => {
-                match stmt {
-                    &mut Statement::InsertStatement { ref mut values, .. } => {
-                        *values = veci;
-                        Ok(Some(NextFn { call: Self::end }))
-                    }
-                    _ => Err(String::from("Wrong statement type")),
-                }
-            }
-            None => Err(String::from("Statement not created")),
-        }
+        Ok(veci)
     }
 
     fn end(_p: &mut Parser) -> NextFnCall {
