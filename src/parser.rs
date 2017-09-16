@@ -1,6 +1,6 @@
 use lexer::{Lexer, Token};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
     SelectStatement { fields: Vec<String>, table: String },
     InsertStatement {
@@ -11,7 +11,7 @@ pub enum Statement {
 }
 
 struct NextFn {
-    call: Box<FnOnce(&mut Parser) -> Result<Option<NextFn>, String>>,
+    call: fn(&mut Parser) -> Result<Option<NextFn>, String>,
 }
 
 type NextFnCall = Result<Option<NextFn>, String>;
@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse(&mut self) -> Result<Statement, String> {
-        let mut fun = NextFn { call: Box::new(Self::init) };
+        let mut fun = NextFn { call: Self::init };
         loop {
             let next_res = (fun.call)(self);
             match next_res {
@@ -71,14 +71,14 @@ impl<'a> Parser<'a> {
     }
 
     fn unscan(&mut self) {
-        self.buf = None;
+        self.lexer.unread();
     }
 
     fn init(p: &mut Parser) -> NextFnCall {
         let token = p.scan_ignore_whitespace();
         match token {
-            Token::Select => Ok(Some(NextFn { call: Box::new(Self::select_sentence) })),
-            Token::Insert => Ok(Some(NextFn { call: Box::new(Self::insert_sentence) })),
+            Token::Select => Ok(Some(NextFn { call: Self::select_sentence })),
+            Token::Insert => Ok(Some(NextFn { call: Self::insert_sentence })),
             _ => Err(String::from("Bad statement begining")),
         }
     }
@@ -88,7 +88,7 @@ impl<'a> Parser<'a> {
                           fields: vec![],
                           table: String::new(),
                       });
-        Ok(Some(NextFn { call: Box::new(Self::into_keyword) }))
+        Ok(Some(NextFn { call: Self::end }))
     }
 
     fn insert_sentence(p: &mut Parser) -> NextFnCall {
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
                           values: vec![],
                           table: String::new(),
                       });
-        Ok(Some(NextFn { call: Box::new(Self::into_keyword) }))
+        Ok(Some(NextFn { call: Self::into_keyword }))
     }
 
     fn into_keyword(p: &mut Parser) -> NextFnCall {
@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
         if token != Token::Into {
             Err(String::from("Into keyword expected"))
         } else {
-            Ok(Some(NextFn { call: Box::new(Self::get_table_name) }))
+            Ok(Some(NextFn { call: Self::get_table_name }))
         }
     }
 
@@ -116,9 +116,9 @@ impl<'a> Parser<'a> {
                 match p.stmt {
                     Some(ref mut stmt) => {
                         match stmt {
-                            &mut Statement::SelectStatement { ref mut table, .. } => {
+                            &mut Statement::InsertStatement { ref mut table, .. } => {
                                 *table = table_name.clone();
-                                Ok(Some(NextFn { call: Box::new(Self::end) }))
+                                Ok(Some(NextFn { call: Self::extract_cols }))
                             }
                             _ => Err(String::from("Wrong statement type")),
                         }
@@ -130,44 +130,112 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn extract_values(p: &mut Parser)
-                          -> Box<FnOnce(&mut Box<Parser>) -> NextFnCall + > {
-        Self::extract_into_parentheses(NextFn { call: Box::new(Self::end) },
-                                       Box::new(|ref mut p, values| {}))
-    }
-
-    fn extract_into_parentheses(next: NextFn,
-                                    mut do_func: Box<FnMut(&mut Box<Parser>, Vec<String>) + >)
-                                    -> Box<FnOnce(&mut Box<Parser>) -> NextFnCall + > {
-        Box::new(move |p: &mut Box<Parser>| -> NextFnCall {
-            let mut token = p.scan_ignore_whitespace();
-            if token != Token::ParLeft {
-                return Err(String::from("( expected"));
-            }
-            let mut values = vec![];
-            loop {
-                token = p.scan_ignore_whitespace();
-                match token {
-                    Token::Ident(value) => {
-                        values.push(value);
-                        token = p.scan_ignore_whitespace();
-                        if token != Token::Comma {
-                            break;
-                        }
+    fn extract_cols(p: &mut Parser) -> NextFnCall {
+        let mut token = p.scan_ignore_whitespace();
+        if token != Token::ParLeft {
+            return Err(String::from("( expected"));
+        }
+        let mut veci = vec![];
+        loop {
+            token = p.scan_ignore_whitespace();
+            match token {
+                Token::Ident(value) => {
+                    veci.push(value);
+                    token = p.scan_ignore_whitespace();
+                    if token != Token::Comma {
+                        p.unscan();
+                        break;
                     }
-                    _ => return Err(String::from("Ident token expected")),
+                }
+                _ => return Err(String::from("Ident token expected")),
+            }
+        }
+        token = p.scan_ignore_whitespace();
+        println!("---{:?}", token);
+        if token != Token::ParRight {
+            return Err(String::from(") expected"));
+        }
+        match p.stmt {
+            Some(ref mut stmt) => {
+                match stmt {
+                    &mut Statement::InsertStatement { ref mut cols, .. } => {
+                        *cols = veci;
+                        Ok(Some(NextFn { call: Self::values_keyword }))
+                    }
+                    _ => Err(String::from("Wrong statement type")),
                 }
             }
-            token = p.scan_ignore_whitespace();
-            if token != Token::ParRight {
-                return Err(String::from(") expected"));
-            }
-            do_func(p, values);
-            Ok(Some(next))
-        })
+            None => Err(String::from("Statement not created")),
+        }
     }
 
-    fn end(p: &mut Parser) -> NextFnCall {
-        unimplemented!()
+    fn values_keyword(p: &mut Parser) -> NextFnCall {
+        let token = p.scan_ignore_whitespace();
+        if token != Token::Values {
+            Err(String::from("Values keyword expected"))
+        } else {
+            Ok(Some(NextFn { call: Self::extract_values }))
+        }
+    }
+
+    fn extract_values(p: &mut Parser) -> NextFnCall {
+        let mut token = p.scan_ignore_whitespace();
+        if token != Token::ParLeft {
+            return Err(String::from("( expected"));
+        }
+        let mut veci = vec![];
+        loop {
+            token = p.scan_ignore_whitespace();
+            match token {
+                Token::Ident(value) => {
+                    veci.push(value);
+                    token = p.scan_ignore_whitespace();
+                    if token != Token::Comma {
+                        p.unscan();
+                        break;
+                    }
+                }
+                _ => return Err(String::from("Ident token expected")),
+            }
+        }
+        token = p.scan_ignore_whitespace();
+        if token != Token::ParRight {
+            return Err(String::from(") expected"));
+        }
+        match p.stmt {
+            Some(ref mut stmt) => {
+                match stmt {
+                    &mut Statement::InsertStatement { ref mut values, .. } => {
+                        *values = veci;
+                        Ok(Some(NextFn { call: Self::end }))
+                    }
+                    _ => Err(String::from("Wrong statement type")),
+                }
+            }
+            None => Err(String::from("Statement not created")),
+        }
+    }
+
+    fn end(_p: &mut Parser) -> NextFnCall {
+        Ok(None)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_reads_none() {
+        let mut l = Lexer::new(String::from("INSERT INTO tbl (name, email) VALUES (demo, demo)"));
+        let mut p = Parser::new(&mut l);
+        let res = p.parse().expect("Error parsing");
+        assert_eq!(res,
+                   Statement::InsertStatement {
+                       table: String::from("tbl"),
+                       cols: vec![String::from("name"), String::from("email")],
+                       values: vec![String::from("demo"), String::from("demo")],
+                   });
     }
 }

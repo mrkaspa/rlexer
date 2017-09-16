@@ -52,7 +52,7 @@ impl Lexer {
     }
 
 
-    fn unread(&mut self) {
+    pub fn unread(&mut self) {
         if self.pos > 0 {
             self.pos -= 1;
         }
@@ -127,7 +127,14 @@ impl Lexer {
                 None => break,
             }
         }
-        Token::Ident(buff)
+        match buff.as_ref() {
+            "INSERT" => Token::Insert,
+            "SELECT" => Token::Select,
+            "FROM" => Token::From,
+            "INTO" => Token::Into,
+            "VALUES" => Token::Values,
+            _ => Token::Ident(buff),
+        }
     }
 }
 
