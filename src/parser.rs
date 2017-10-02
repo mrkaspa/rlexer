@@ -85,18 +85,18 @@ impl<'a> Parser<'a> {
 
     fn select_sentence(p: &mut Parser) -> NextFnCall {
         p.stmt = Some(Statement::SelectStatement {
-                          fields: vec![],
-                          table: String::new(),
-                      });
+            fields: vec![],
+            table: String::new(),
+        });
         Ok(Some(NextFn { call: Self::end }))
     }
 
     fn insert_sentence(p: &mut Parser) -> NextFnCall {
         p.stmt = Some(Statement::InsertStatement {
-                          cols: vec![],
-                          values: vec![],
-                          table: String::new(),
-                      });
+            cols: vec![],
+            values: vec![],
+            table: String::new(),
+        });
         Ok(Some(NextFn { call: Self::into_keyword }))
     }
 
@@ -210,7 +210,9 @@ mod tests {
 
     #[test]
     fn it_scans() {
-        let mut l = Lexer::new(String::from("INSERT INTO tbl (name, email) VALUES (demo, demo)"));
+        let mut l = Lexer::new(String::from(
+            "INSERT INTO tbl (name, email) VALUES (demo, demo)",
+        ));
         let mut p = Parser::new(&mut l);
         let token = p.scan();
         assert_eq!(token, Token::Insert);
@@ -218,7 +220,9 @@ mod tests {
 
     #[test]
     fn it_stores_buf() {
-        let mut l = Lexer::new(String::from("INSERT INTO tbl (name, email) VALUES (demo, demo)"));
+        let mut l = Lexer::new(String::from(
+            "INSERT INTO tbl (name, email) VALUES (demo, demo)",
+        ));
         let mut p = Parser::new(&mut l);
         let token = p.scan();
         p.unscan();
