@@ -2,7 +2,10 @@ use lexer::{Lexer, Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Statement {
-    SelectStatement { fields: Vec<String>, table: String },
+    SelectStatement {
+        fields: Vec<String>,
+        table: String,
+    },
     InsertStatement {
         cols: Vec<String>,
         values: Vec<String>,
@@ -36,12 +39,10 @@ impl<'a> Parser<'a> {
         loop {
             let next_res = (fun.call)(self);
             match next_res {
-                Ok(next_fun_opt) => {
-                    match next_fun_opt {
-                        Some(next_fun) => fun = next_fun,
-                        None => break,
-                    }
-                }
+                Ok(next_fun_opt) => match next_fun_opt {
+                    Some(next_fun) => fun = next_fun,
+                    None => break,
+                },
                 Err(error) => return Err(error),
             };
         }
@@ -77,8 +78,12 @@ impl<'a> Parser<'a> {
     fn init(p: &mut Parser) -> NextFnCall {
         let token = p.scan_ignore_whitespace();
         match token {
-            Token::Select => Ok(Some(NextFn { call: Self::select_sentence })),
-            Token::Insert => Ok(Some(NextFn { call: Self::insert_sentence })),
+            Token::Select => Ok(Some(NextFn {
+                call: Self::select_sentence,
+            })),
+            Token::Insert => Ok(Some(NextFn {
+                call: Self::insert_sentence,
+            })),
             _ => Err(String::from("Bad statement begining")),
         }
     }
@@ -97,7 +102,9 @@ impl<'a> Parser<'a> {
             values: vec![],
             table: String::new(),
         });
-        Ok(Some(NextFn { call: Self::into_keyword }))
+        Ok(Some(NextFn {
+            call: Self::into_keyword,
+        }))
     }
 
     fn into_keyword(p: &mut Parser) -> NextFnCall {
@@ -105,27 +112,27 @@ impl<'a> Parser<'a> {
         if token != Token::Into {
             Err(String::from("Into keyword expected"))
         } else {
-            Ok(Some(NextFn { call: Self::get_table_name }))
+            Ok(Some(NextFn {
+                call: Self::get_table_name,
+            }))
         }
     }
 
     fn get_table_name(p: &mut Parser) -> NextFnCall {
         let token = p.scan_ignore_whitespace();
         match token {
-            Token::Ident(table_name) => {
-                match p.stmt {
-                    Some(ref mut stmt) => {
-                        match stmt {
-                            &mut Statement::InsertStatement { ref mut table, .. } => {
-                                *table = table_name.clone();
-                                Ok(Some(NextFn { call: Self::extract_cols }))
-                            }
-                            _ => Err(String::from("Wrong statement type")),
-                        }
+            Token::Ident(table_name) => match p.stmt {
+                Some(ref mut stmt) => match stmt {
+                    &mut Statement::InsertStatement { ref mut table, .. } => {
+                        *table = table_name.clone();
+                        Ok(Some(NextFn {
+                            call: Self::extract_cols,
+                        }))
                     }
-                    None => Err(String::from("Statement not created")),
-                }
-            }
+                    _ => Err(String::from("Wrong statement type")),
+                },
+                None => Err(String::from("Statement not created")),
+            },
             _ => Err(String::from("Into keyword expected")),
         }
     }
@@ -133,15 +140,15 @@ impl<'a> Parser<'a> {
     fn extract_cols(p: &mut Parser) -> NextFnCall {
         let veci = Self::get_into_parentheses(p)?;
         match p.stmt {
-            Some(ref mut stmt) => {
-                match stmt {
-                    &mut Statement::InsertStatement { ref mut cols, .. } => {
-                        *cols = veci;
-                        Ok(Some(NextFn { call: Self::values_keyword }))
-                    }
-                    _ => Err(String::from("Wrong statement type")),
+            Some(ref mut stmt) => match stmt {
+                &mut Statement::InsertStatement { ref mut cols, .. } => {
+                    *cols = veci;
+                    Ok(Some(NextFn {
+                        call: Self::values_keyword,
+                    }))
                 }
-            }
+                _ => Err(String::from("Wrong statement type")),
+            },
             None => Err(String::from("Statement not created")),
         }
     }
@@ -151,22 +158,22 @@ impl<'a> Parser<'a> {
         if token != Token::Values {
             Err(String::from("Values keyword expected"))
         } else {
-            Ok(Some(NextFn { call: Self::extract_values }))
+            Ok(Some(NextFn {
+                call: Self::extract_values,
+            }))
         }
     }
 
     fn extract_values(p: &mut Parser) -> NextFnCall {
         let veci = Self::get_into_parentheses(p)?;
         match p.stmt {
-            Some(ref mut stmt) => {
-                match stmt {
-                    &mut Statement::InsertStatement { ref mut values, .. } => {
-                        *values = veci;
-                        Ok(Some(NextFn { call: Self::end }))
-                    }
-                    _ => Err(String::from("Wrong statement type")),
+            Some(ref mut stmt) => match stmt {
+                &mut Statement::InsertStatement { ref mut values, .. } => {
+                    *values = veci;
+                    Ok(Some(NextFn { call: Self::end }))
                 }
-            }
+                _ => Err(String::from("Wrong statement type")),
+            },
             None => Err(String::from("Statement not created")),
         }
     }
