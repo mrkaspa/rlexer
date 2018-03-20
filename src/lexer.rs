@@ -51,7 +51,6 @@ impl Lexer {
         }
     }
 
-
     pub fn unread(&mut self) {
         if self.pos > 0 {
             self.pos -= 1;
