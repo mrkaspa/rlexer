@@ -37,14 +37,11 @@ impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> Result<Statement, String> {
         let mut fun = NextFn { call: Self::init };
         loop {
-            let next_res = (fun.call)(self);
-            match next_res {
-                Ok(next_fun_opt) => match next_fun_opt {
-                    Some(next_fun) => fun = next_fun,
-                    None => break,
-                },
-                Err(error) => return Err(error),
-            };
+            let next_fun_opt = (fun.call)(self)?;
+            match next_fun_opt {
+                Some(next_fun) => fun = next_fun,
+                None => break,
+            }
         }
         match self.stmt {
             Some(ref stmt) => Ok(stmt.clone()),
