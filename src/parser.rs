@@ -19,14 +19,14 @@ struct NextFn {
 
 type NextFnCall = Result<Option<NextFn>, String>;
 
-pub struct Parser<'a> {
-    lexer: &'a mut Lexer,
+pub struct Parser {
+    lexer: Lexer,
     stmt: Option<Statement>,
     buf: Option<Token>,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(l: &'a mut Lexer) -> Self {
+impl Parser {
+    pub fn new(l: Lexer) -> Self {
         Parser {
             lexer: l,
             stmt: None,
@@ -214,20 +214,20 @@ mod tests {
 
     #[test]
     fn it_scans() {
-        let mut l = Lexer::new(String::from(
+        let l = Lexer::new(String::from(
             "INSERT INTO tbl (name, email) VALUES (demo, demo)",
         ));
-        let mut p = Parser::new(&mut l);
+        let mut p = Parser::new(l);
         let token = p.scan();
         assert_eq!(token, Token::Insert);
     }
 
     #[test]
     fn it_stores_buf() {
-        let mut l = Lexer::new(String::from(
+        let l = Lexer::new(String::from(
             "INSERT INTO tbl (name, email) VALUES (demo, demo)",
         ));
-        let mut p = Parser::new(&mut l);
+        let mut p = Parser::new(l);
         let token = p.scan();
         p.unscan();
         assert_eq!(p.buf, Some(token));

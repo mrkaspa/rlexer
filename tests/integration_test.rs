@@ -27,13 +27,12 @@ fn it_scans_text() {
     );
 }
 
-
 #[test]
 fn it_parses_insert() {
-    let mut l = Lexer::new(String::from(
+    let l = Lexer::new(String::from(
         "INSERT INTO tbl (name, email) VALUES (demo, demo)",
     ));
-    let mut p = Parser::new(&mut l);
+    let mut p = Parser::new(l);
     let res = p.parse().expect("Error parsing");
     assert_eq!(
         res,
