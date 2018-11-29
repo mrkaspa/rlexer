@@ -27,7 +27,8 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(l: Lexer) -> Self {
+    pub fn new(query: String) -> Self {
+        let l = Lexer::new(query);
         Parser {
             lexer: l,
             stmt: None,
@@ -223,20 +224,18 @@ mod tests {
 
     #[test]
     fn it_scans() {
-        let l = Lexer::new(String::from(
+        let mut p = Parser::new(String::from(
             "INSERT INTO tbl (name, email) VALUES (demo, demo)",
         ));
-        let mut p = Parser::new(l);
         let token = p.scan();
         assert_eq!(token, Token::Insert);
     }
 
     #[test]
     fn it_stores_buf() {
-        let l = Lexer::new(String::from(
+        let mut p = Parser::new(String::from(
             "INSERT INTO tbl (name, email) VALUES (demo, demo)",
         ));
-        let mut p = Parser::new(l);
         let token = p.scan();
         p.unscan();
         assert_eq!(p.buf, Some(token));

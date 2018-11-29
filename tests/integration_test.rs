@@ -29,10 +29,9 @@ fn it_scans_text() {
 
 #[test]
 fn it_parses_insert() {
-    let l = Lexer::new(String::from(
+    let mut p = Parser::new(String::from(
         "INSERT INTO tbl (name, email) VALUES (demo, demo)",
     ));
-    let mut p = Parser::new(l);
     let res = p.parse().expect("Error parsing");
     assert_eq!(
         res,
@@ -46,10 +45,9 @@ fn it_parses_insert() {
 
 #[test]
 fn it_parses_no_columns() {
-    let l = Lexer::new(String::from(
+    let mut p = Parser::new(String::from(
         "INSERT INTO tbl VALUES (demo, demo)",
     ));
-    let mut p = Parser::new(l);
     let res = p.parse().expect("Error parsing");
     assert_eq!(
         res,
