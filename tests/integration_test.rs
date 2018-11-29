@@ -27,19 +27,35 @@ fn it_scans_text() {
     );
 }
 
-
 #[test]
 fn it_parses_insert() {
-    let mut l = Lexer::new(String::from(
+    let l = Lexer::new(String::from(
         "INSERT INTO tbl (name, email) VALUES (demo, demo)",
     ));
-    let mut p = Parser::new(&mut l);
+    let mut p = Parser::new(l);
     let res = p.parse().expect("Error parsing");
     assert_eq!(
         res,
         Statement::InsertStatement {
             table: String::from("tbl"),
             cols: vec![String::from("name"), String::from("email")],
+            values: vec![String::from("demo"), String::from("demo")],
+        }
+    );
+}
+
+#[test]
+fn it_parses_no_columns() {
+    let l = Lexer::new(String::from(
+        "INSERT INTO tbl VALUES (demo, demo)",
+    ));
+    let mut p = Parser::new(l);
+    let res = p.parse().expect("Error parsing");
+    assert_eq!(
+        res,
+        Statement::InsertStatement {
+            table: String::from("tbl"),
+            cols: vec![],
             values: vec![String::from("demo"), String::from("demo")],
         }
     );

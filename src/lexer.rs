@@ -27,7 +27,7 @@ fn is_digit(ch: char) -> bool {
     ch >= '0' && ch <= '9'
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Lexer {
     pos: i32,
     buffer: Vec<char>,
